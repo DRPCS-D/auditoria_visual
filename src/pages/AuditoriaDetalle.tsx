@@ -261,20 +261,12 @@ export default function AuditoriaDetalle() {
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-3 md:justify-end">
-                        <label className="text-[11px] text-muted-foreground">
+                        <div className="text-[11px] text-muted-foreground">
                           Anterior
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            min={0}
-                            max={it.max}
-                            step="any"
-                            className="mt-0.5 h-8 w-16 text-center"
-                            disabled={!editable}
-                            value={resp.a ?? ''}
-                            onChange={(e) => cambiar(it, { a: leerNumero(e.target.value, it.max) })}
-                          />
-                        </label>
+                          <p className="mt-0.5 flex h-8 w-16 items-center justify-center rounded-md border border-border bg-secondary text-sm tabular-nums text-foreground">
+                            {resp.a ?? '—'}
+                          </p>
+                        </div>
                         <div className="text-[11px] text-muted-foreground">
                           Puntaje (máx. {numero(it.max)})
                           <PuntajeInput item={it} valor={resp.p} editable={editable} onChange={(p) => cambiar(it, { p })} />

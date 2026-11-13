@@ -734,6 +734,7 @@ function handleSaveAuditoria_(body) {
 
   // Solo se aceptan respuestas de criterios que existen en la estructura de ESTA auditoría.
   var entrada = body.respuestas && typeof body.respuestas === 'object' ? body.respuestas : {};
+  var guardadas = parsearJson_(a.valores[COL_AUD.respuestas], {});
   var respuestas = {};
   var faltan = 0, maximo = 0, obtenido = 0;
   est.secciones.forEach(function (s) {
@@ -742,8 +743,9 @@ function handleSaveAuditoria_(body) {
       var r = entrada[it.id] || {};
       var p = r.p === null || r.p === undefined || r.p === '' ? null : Number(r.p);
       if (p !== null && (!isFinite(p) || p < 0 || p > it.max)) throw new Error('Un puntaje está fuera de rango (0 a ' + it.max + ').');
-      var an = r.a === null || r.a === undefined || r.a === '' ? null : Number(r.a);
-      if (an !== null && (!isFinite(an) || an < 0 || an > it.max)) an = null;
+      // "Anterior" lo fija el sistema al crear la auditoría: lo que mande el cliente se ignora.
+      var guardada = guardadas[it.id];
+      var an = guardada && guardada.a !== undefined ? guardada.a : null;
       var h = String(r.h || '').slice(0, 1000);
       if (p === null) faltan++; else obtenido += p;
       if (p !== null || an !== null || h) respuestas[it.id] = { a: an, p: p, h: h };
