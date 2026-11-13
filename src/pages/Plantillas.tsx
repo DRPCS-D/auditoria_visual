@@ -16,7 +16,7 @@ import type { Plantilla } from '@/lib/tipos'
 const contarCriterios = (p: Plantilla) => p.secciones.reduce((n, s) => n + s.items.length, 0)
 
 export default function Plantillas() {
-  const { esAdmin } = useAuth()
+  const { puedeAuditar } = useAuth()
   const navigate = useNavigate()
   const { data, loading, error, crear } = usePlantillas()
   const { data: empresas, nombres: nombreEmpresa } = useEmpresas()
@@ -25,15 +25,15 @@ export default function Plantillas() {
   const archivo = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!esAdmin) navigate('/', { replace: true })
-  }, [esAdmin, navigate])
+    if (!puedeAuditar) navigate('/', { replace: true })
+  }, [puedeAuditar, navigate])
 
   const filtradas = useMemo(
     () => (filtroEmpresa ? data.filter((p) => p.empresaId === filtroEmpresa) : data),
     [data, filtroEmpresa],
   )
 
-  if (!esAdmin) return null
+  if (!puedeAuditar) return null
 
   async function importar(f: File | undefined) {
     if (!f) return

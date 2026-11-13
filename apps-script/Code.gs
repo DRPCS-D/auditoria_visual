@@ -379,8 +379,9 @@ function handleListSucursales_(body) {
 }
 
 function handleSaveSucursal_(body, edita) {
-  requireAdmin_(body);
+  var user = requireRol_(body, ['admin', 'auditor']);
   var empresa = validarEmpresa_(body.empresaId);
+  if (!veEmpresa_(user, empresa.id)) throw new Error('No tienes acceso a esa empresa.');
   var nombre = String(body.nombre || '').trim().slice(0, 60);
   var encargada = String(body.encargada || '').trim().slice(0, 80);
   var direccion = String(body.direccion || '').trim().slice(0, 150);
@@ -393,6 +394,7 @@ function handleSaveSucursal_(body, edita) {
   if (edita) {
     fila = filaPorId_(sheet, COL_SUC.id, body.id);
     if (!fila) throw new Error('La sucursal ya no existe.');
+    if (!veEmpresa_(user, String(fila.valores[COL_SUC.empresaId]).trim())) throw new Error('No tienes acceso a esa sucursal.');
     if (String(fila.valores[COL_SUC.empresaId]).trim() !== empresa.id &&
         hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.sucursalId, String(body.id).trim())) {
       throw new Error('La sucursal ya tiene auditorías: no se puede pasar a otra empresa.');
@@ -503,8 +505,9 @@ function normalizarSecciones_(secciones, escalaMax) {
 }
 
 function handleSavePlantilla_(body, edita) {
-  var user = requireAdmin_(body);
+  var user = requireRol_(body, ['admin', 'auditor']);
   var empresa = validarEmpresa_(body.empresaId);
+  if (!veEmpresa_(user, empresa.id)) throw new Error('No tienes acceso a esa empresa.');
   var nombre = String(body.nombre || '').trim().slice(0, 80);
   var codigo = String(body.codigo || '').trim().slice(0, 30);
   var titulo = String(body.titulo || '').trim().slice(0, 100) || 'INFORME DE AUDITORÍA INTERNA';
@@ -522,6 +525,7 @@ function handleSavePlantilla_(body, edita) {
   if (edita) {
     fila = filaPorId_(sheet, COL_PLA.id, body.id);
     if (!fila) throw new Error('La plantilla ya no existe.');
+    if (!veEmpresa_(user, String(fila.valores[COL_PLA.empresaId]).trim())) throw new Error('No tienes acceso a esa plantilla.');
   }
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][COL_PLA.empresaId]).trim() === empresa.id &&

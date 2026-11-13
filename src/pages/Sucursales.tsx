@@ -16,7 +16,7 @@ import { normalizar } from '@/lib/format'
 import type { Sucursal } from '@/lib/tipos'
 
 export default function Sucursales() {
-  const { esAdmin } = useAuth()
+  const { esAdmin, puedeAuditar } = useAuth()
   const navigate = useNavigate()
   const { data, loading, error, refetch, crear, editar, eliminar } = useSucursales()
   const { data: empresas, nombres: nombreEmpresa } = useEmpresas()
@@ -28,8 +28,8 @@ export default function Sucursales() {
   const [borrando, setBorrando] = useState(false)
 
   useEffect(() => {
-    if (!esAdmin) navigate('/', { replace: true })
-  }, [esAdmin, navigate])
+    if (!puedeAuditar) navigate('/', { replace: true })
+  }, [puedeAuditar, navigate])
 
   const filtradas = useMemo(() => {
     const q = normalizar(busqueda)
@@ -40,7 +40,7 @@ export default function Sucursales() {
     )
   }, [data, filtroEmpresa, busqueda, nombreEmpresa])
 
-  if (!esAdmin) return null
+  if (!puedeAuditar) return null
 
   return (
     <div>
@@ -138,10 +138,10 @@ export default function Sucursales() {
           setModalForm(null)
           refetch()
         }}
-        onBorrar={() => {
+        onBorrar={esAdmin ? () => {
           setModalBorrar(modalForm === 'nueva' ? null : modalForm)
           setModalForm(null)
-        }}
+        } : undefined}
         crear={crear}
         editar={editar}
       />

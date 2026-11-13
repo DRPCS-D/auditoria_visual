@@ -21,11 +21,8 @@ const NAV_PRINCIPAL: ItemNav[] = [
   { to: '/auditorias', label: 'Auditorías', end: false },
 ]
 const NAV_SUCURSALES: ItemNav = { to: '/sucursales', label: 'Sucursales', end: false }
-const NAV_MAS = [
-  { to: '/plantillas', label: 'Plantillas' },
-  { to: '/empresas', label: 'Empresas' },
-  { to: '/usuarios', label: 'Usuarios' },
-]
+const NAV_MAS_AUDITOR = [{ to: '/plantillas', label: 'Plantillas' }]
+const NAV_MAS_ADMIN = [...NAV_MAS_AUDITOR, { to: '/empresas', label: 'Empresas' }, { to: '/usuarios', label: 'Usuarios' }]
 
 /** Menú desplegable con las secciones que se usan menos. */
 function MenuMas({ items }: { items: { to: string; label: string }[] }) {
@@ -106,12 +103,13 @@ const claseLink = (isActive: boolean) =>
   )
 
 export default function AppLayout() {
-  const { usuario, nombre, rol, esAdmin, signOut } = useAuth()
+  const { usuario, nombre, rol, esAdmin, puedeAuditar, signOut } = useAuth()
   const navigate = useNavigate()
   const [modalPassword, setModalPassword] = useState(false)
   const { forzando, forzar } = useForzarActualizacion()
 
-  const NAV = esAdmin ? [...NAV_PRINCIPAL, NAV_SUCURSALES] : NAV_PRINCIPAL
+  const NAV = puedeAuditar ? [...NAV_PRINCIPAL, NAV_SUCURSALES] : NAV_PRINCIPAL
+  const MAS = esAdmin ? NAV_MAS_ADMIN : puedeAuditar ? NAV_MAS_AUDITOR : []
 
   useEffect(() => {
     if (!usuario) navigate('/login', { replace: true })
@@ -132,7 +130,7 @@ export default function AppLayout() {
             {NAV.map((item) => (
               <EnlaceNav key={item.to} item={item} />
             ))}
-            {esAdmin && <MenuMas items={NAV_MAS} />}
+            {MAS.length > 0 && <MenuMas items={MAS} />}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
@@ -171,7 +169,7 @@ export default function AppLayout() {
               <EnlaceNav key={item.to} item={item} />
             ))}
           </div>
-          {esAdmin && <MenuMas items={NAV_MAS} />}
+          {MAS.length > 0 && <MenuMas items={MAS} />}
         </nav>
       </header>
 

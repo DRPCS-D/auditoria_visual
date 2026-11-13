@@ -23,7 +23,8 @@ export function SucursalFormModal({
   empresaInicial: string
   onCerrar: () => void
   onGuardado: () => void
-  onBorrar: () => void
+  /** Sin esta función no se ofrece Borrar (solo el Admin borra). */
+  onBorrar?: () => void
   crear: (d: DatosSucursal) => Promise<{ error: string | null }>
   editar: (id: string, d: DatosSucursal) => Promise<{ error: string | null }>
 }) {

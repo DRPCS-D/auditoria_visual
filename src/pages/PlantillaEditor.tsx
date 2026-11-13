@@ -18,7 +18,7 @@ const seccionNueva = (max: number): Seccion => ({ id: idNuevo(), titulo: '', ite
 
 /** Alta y edición de una plantilla: datos del formato, secciones y criterios (orden, texto y puntaje máximo). */
 export default function PlantillaEditor() {
-  const { esAdmin } = useAuth()
+  const { esAdmin, puedeAuditar } = useAuth()
   const { id } = useParams()
   const navigate = useNavigate()
   const importada = (useLocation().state as { importada?: PlantillaImportada } | null)?.importada
@@ -42,8 +42,8 @@ export default function PlantillaEditor() {
   const [errorForm, setErrorForm] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!esAdmin) navigate('/', { replace: true })
-  }, [esAdmin, navigate])
+    if (!puedeAuditar) navigate('/', { replace: true })
+  }, [puedeAuditar, navigate])
 
   // Se llena el formulario una sola vez: las actualizaciones de fondo de la tabla no deben pisar lo que se está escribiendo.
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function PlantillaEditor() {
     if (esNueva && !empresaId && empresas.length === 1) setEmpresaId(empresas[0].id)
   }, [esNueva, empresaId, empresas])
 
-  if (!esAdmin) return null
+  if (!puedeAuditar) return null
   if (loading && !cargado) return <Cargando />
   if (error && !cargado) return <ErrorBox mensaje={error} />
   if (!esNueva && !plantilla && !cargado) {
@@ -129,7 +129,7 @@ export default function PlantillaEditor() {
           </Link>
           <h1 className="text-lg font-semibold text-foreground">{esNueva ? 'Nueva plantilla' : 'Editar plantilla'}</h1>
         </div>
-        {!esNueva && (
+        {!esNueva && esAdmin && (
           <Button variant="outline" onClick={() => setConfirmarBorrar(true)} disabled={guardando}>
             <Trash2 className="text-destructive" /> Borrar
           </Button>
