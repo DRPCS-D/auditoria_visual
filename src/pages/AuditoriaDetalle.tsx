@@ -8,7 +8,7 @@ import { Cargando, ErrorBox } from '@/components/ui/estado'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { ConfirmModal } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
-import { cargarAuditoria, guardarAuditoria } from '@/hooks/useAuditorias'
+import { cargarAuditoria, guardarAuditoria, parchearAuditoria, quitarAuditoria } from '@/hooks/useAuditorias'
 import { ejecutar } from '@/lib/ejecutar'
 import { fechaCorta } from '@/lib/documentos/formato'
 import { numero, porcentaje, resumir, tendencia, type Tendencia } from '@/lib/puntaje'
@@ -100,7 +100,7 @@ export default function AuditoriaDetalle() {
   }
 
   async function guardar(finalizar: boolean) {
-    if (!auditoria) return false
+    if (!auditoria || !resumen) return false
     setTrabajando(finalizar ? 'finalizar' : 'guardar')
     const { error: err } = await guardarAuditoria(auditoria.id, {
       encargada: encargada.trim(),
@@ -115,8 +115,20 @@ export default function AuditoriaDetalle() {
       return false
     }
     toast.success(finalizar ? 'Auditoría finalizada.' : 'Borrador guardado.')
+    // Se refleja al instante lo que ya se sabe (sin volver a descargar nada) y la sincronización sigue en segundo plano.
+    const nuevoEstado = finalizar ? 'finalizada' : auditoria.estado
+    setAuditoria({ ...auditoria, encargada: encargada.trim(), auditor: auditor.trim(), fecha, respuestas, estado: nuevoEstado })
+    setSucio(false)
+    parchearAuditoria(auditoria.id, {
+      encargada: encargada.trim(),
+      auditor: auditor.trim(),
+      fecha,
+      estado: nuevoEstado,
+      maximo: resumen.maximo,
+      obtenido: resumen.obtenido,
+      cumplimiento: resumen.cumplimiento,
+    })
     void sincronizar()
-    await cargar()
     return true
   }
 
@@ -145,6 +157,8 @@ export default function AuditoriaDetalle() {
     setTrabajando(null)
     setConfirmar(null)
     if (err) return toast.error(err)
+    if (que === 'borrar') quitarAuditoria(auditoria.id)
+    else parchearAuditoria(auditoria.id, { estado: 'borrador' })
     void sincronizar()
     if (que === 'borrar') {
       toast.success('Auditoría borrada.')
@@ -152,7 +166,7 @@ export default function AuditoriaDetalle() {
       navigate('/auditorias', { replace: true })
     } else {
       toast.success('Auditoría reabierta.')
-      await cargar()
+      setAuditoria((a) => (a ? { ...a, estado: 'borrador' } : a))
     }
   }
 

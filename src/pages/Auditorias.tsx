@@ -11,6 +11,7 @@ import { TablaScroll } from '@/components/ui/tabla-scroll'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuditorias } from '@/hooks/useAuditorias'
 import { useEmpresas } from '@/hooks/useCatalogo'
+import { sincronizar } from '@/lib/tablas'
 import { fechaCorta } from '@/lib/documentos/formato'
 import { normalizar } from '@/lib/format'
 import { porcentaje } from '@/lib/puntaje'
@@ -145,6 +146,7 @@ export default function Auditorias() {
         onCerrar={() => setModalNueva(false)}
         onCreada={(id) => {
           setModalNueva(false)
+          void sincronizar()
           navigate(`/auditorias/${id}`)
         }}
         crear={crear}
