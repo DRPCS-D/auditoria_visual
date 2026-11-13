@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowLeft, ArrowUp, Plus, Save, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { ConfirmModal } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
 import { useEmpresas, usePlantillas } from '@/hooks/useCatalogo'
 import { idNuevo, mover } from '@/lib/listas'
+import type { PlantillaImportada } from '@/lib/importarExcel'
 import { numero } from '@/lib/puntaje'
 import type { Seccion } from '@/lib/tipos'
 
@@ -20,6 +21,7 @@ export default function PlantillaEditor() {
   const { esAdmin } = useAuth()
   const { id } = useParams()
   const navigate = useNavigate()
+  const importada = (useLocation().state as { importada?: PlantillaImportada } | null)?.importada
   const esNueva = id === 'nueva'
 
   const { data: plantillas, loading, error, crear, editar, eliminar } = usePlantillas()
@@ -47,7 +49,11 @@ export default function PlantillaEditor() {
   useEffect(() => {
     if (cargado) return
     if (esNueva) {
-      setSecciones([seccionNueva(5)])
+      if (importada) {
+        setTitulo(importada.titulo || 'INFORME DE AUDITORÍA INTERNA')
+        setCodigo(importada.codigo)
+        setSecciones(importada.secciones)
+      } else setSecciones([seccionNueva(5)])
       setCargado(true)
     } else if (plantilla) {
       setEmpresaId(plantilla.empresaId)
@@ -59,7 +65,7 @@ export default function PlantillaEditor() {
       setSecciones(plantilla.secciones.map((s) => ({ ...s, items: s.items.map((it) => ({ ...it })) })))
       setCargado(true)
     }
-  }, [cargado, esNueva, plantilla])
+  }, [cargado, esNueva, plantilla, importada])
 
   useEffect(() => {
     if (esNueva && !empresaId && empresas.length === 1) setEmpresaId(empresas[0].id)

@@ -1,5 +1,5 @@
-import { ClipboardList, Copy, Plus } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ClipboardList, Copy, FileUp, Plus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { TablaScroll } from '@/components/ui/tabla-scroll'
 import { useAuth } from '@/hooks/useAuth'
 import { useEmpresas, usePlantillas } from '@/hooks/useCatalogo'
+import { plantillaDesdeExcel } from '@/lib/importarExcel'
 import type { Plantilla } from '@/lib/tipos'
 
 const contarCriterios = (p: Plantilla) => p.secciones.reduce((n, s) => n + s.items.length, 0)
@@ -21,6 +22,7 @@ export default function Plantillas() {
   const { data: empresas, nombres: nombreEmpresa } = useEmpresas()
 
   const [filtroEmpresa, setFiltroEmpresa] = useState('')
+  const archivo = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!esAdmin) navigate('/', { replace: true })
@@ -32,6 +34,17 @@ export default function Plantillas() {
   )
 
   if (!esAdmin) return null
+
+  async function importar(f: File | undefined) {
+    if (!f) return
+    try {
+      const importada = await plantillaDesdeExcel(f)
+      toast.success(`Importadas ${importada.secciones.length} secciones. Revisa y guarda.`)
+      navigate('/plantillas/nueva', { state: { importada } })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo leer el Excel.')
+    }
+  }
 
   async function duplicar(p: Plantilla) {
     const { error: err, data: r } = await crear({
@@ -55,11 +68,26 @@ export default function Plantillas() {
           <h1 className="text-lg font-semibold text-foreground">Plantillas</h1>
           <p className="text-sm text-muted-foreground">Los criterios de cada auditoría, por empresa.</p>
         </div>
-        <Link to="/plantillas/nueva">
-          <Button>
-            <Plus /> Nueva
+        <div className="flex gap-2">
+          <input
+            ref={archivo}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => {
+              void importar(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+          <Button variant="outline" onClick={() => archivo.current?.click()}>
+            <FileUp /> Importar Excel
           </Button>
-        </Link>
+          <Link to="/plantillas/nueva">
+            <Button>
+              <Plus /> Nueva
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {empresas.length > 1 && (
