@@ -1,4 +1,4 @@
-import { Plus, Store } from 'lucide-react'
+import { Plus, Search, Store } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,12 +6,13 @@ import { SucursalFormModal } from '@/components/admin/SucursalFormModal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ErrorBox, Vacio } from '@/components/ui/estado'
-import { Select } from '@/components/ui/field'
+import { Input, Select } from '@/components/ui/field'
 import { ConfirmModal } from '@/components/ui/modal'
 import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { TablaScroll } from '@/components/ui/tabla-scroll'
 import { useAuth } from '@/hooks/useAuth'
 import { useEmpresas, useSucursales } from '@/hooks/useCatalogo'
+import { normalizar } from '@/lib/format'
 import type { Sucursal } from '@/lib/tipos'
 
 export default function Sucursales() {
@@ -21,6 +22,7 @@ export default function Sucursales() {
   const { data: empresas, nombres: nombreEmpresa } = useEmpresas()
 
   const [filtroEmpresa, setFiltroEmpresa] = useState('')
+  const [busqueda, setBusqueda] = useState('')
   const [modalForm, setModalForm] = useState<'nueva' | Sucursal | null>(null)
   const [modalBorrar, setModalBorrar] = useState<Sucursal | null>(null)
   const [borrando, setBorrando] = useState(false)
@@ -29,10 +31,14 @@ export default function Sucursales() {
     if (!esAdmin) navigate('/', { replace: true })
   }, [esAdmin, navigate])
 
-  const filtradas = useMemo(
-    () => (filtroEmpresa ? data.filter((s) => s.empresaId === filtroEmpresa) : data),
-    [data, filtroEmpresa],
-  )
+  const filtradas = useMemo(() => {
+    const q = normalizar(busqueda)
+    return data.filter(
+      (s) =>
+        (!filtroEmpresa || s.empresaId === filtroEmpresa) &&
+        (!q || normalizar(`${s.nombre} ${s.encargada} ${s.direccion} ${nombreEmpresa.get(s.empresaId) ?? ''}`).includes(q)),
+    )
+  }, [data, filtroEmpresa, busqueda, nombreEmpresa])
 
   if (!esAdmin) return null
 
@@ -48,9 +54,20 @@ export default function Sucursales() {
         </Button>
       </div>
 
-      {empresas.length > 1 && (
-        <div className="mb-4 max-w-xs">
-          <Select aria-label="Empresa" value={filtroEmpresa} onChange={(e) => setFiltroEmpresa(e.target.value)}>
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            name="busqueda"
+            aria-label="Buscar"
+            className="pl-9"
+            placeholder="Buscar sucursal, encargada…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+        {empresas.length > 1 && (
+          <Select aria-label="Empresa" className="w-auto" value={filtroEmpresa} onChange={(e) => setFiltroEmpresa(e.target.value)}>
             <option value="">Todas las empresas</option>
             {empresas.map((e) => (
               <option key={e.id} value={e.id}>
@@ -58,17 +75,21 @@ export default function Sucursales() {
               </option>
             ))}
           </Select>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <TableSkeleton columnas={[25, 25, 25, 12]} />
       ) : error ? (
         <ErrorBox mensaje={error} />
       ) : filtradas.length === 0 ? (
-        <Vacio icono={Store} titulo="Sin sucursales" descripcion="Crea una para poder hacer auditorías." />
+        data.length > 0 ? (
+          <Vacio icono={Store} titulo="Sin resultados" descripcion="Prueba con otra búsqueda o filtro." />
+        ) : (
+          <Vacio icono={Store} titulo="Sin sucursales" descripcion="Crea una para poder hacer auditorías." />
+        )
       ) : (
-        <TablaScroll total={filtradas.length} clave={filtroEmpresa}>
+        <TablaScroll total={filtradas.length} clave={`${filtroEmpresa}|${busqueda}`}>
           {(limite) => (
             <>
               <thead>
