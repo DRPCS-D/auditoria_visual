@@ -21,8 +21,11 @@ const NAV_PRINCIPAL: ItemNav[] = [
   { to: '/auditorias', label: 'Auditorías', end: false },
 ]
 const NAV_SUCURSALES: ItemNav = { to: '/sucursales', label: 'Sucursales', end: false }
-const NAV_MAS_AUDITOR = [{ to: '/plantillas', label: 'Plantillas' }]
-const NAV_MAS_ADMIN = [...NAV_MAS_AUDITOR, { to: '/empresas', label: 'Empresas' }, { to: '/usuarios', label: 'Usuarios' }]
+const NAV_MAS_AUDITOR = [
+  { to: '/plantillas', label: 'Plantillas' },
+  { to: '/empresas', label: 'Empresas' },
+]
+const NAV_MAS_ADMIN = [...NAV_MAS_AUDITOR, { to: '/usuarios', label: 'Usuarios' }]
 
 /** Menú desplegable con las secciones que se usan menos. */
 function MenuMas({ items }: { items: { to: string; label: string }[] }) {

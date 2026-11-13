@@ -18,7 +18,8 @@ export function EmpresaFormModal({
   empresa: Empresa | null
   onCerrar: () => void
   onGuardado: () => void
-  onBorrar: () => void
+  /** Sin esta función no se ofrece Borrar (solo el Admin borra). */
+  onBorrar?: () => void
   crear: (d: DatosEmpresa) => Promise<{ error: string | null }>
   editar: (id: string, d: DatosEmpresa) => Promise<{ error: string | null }>
 }) {

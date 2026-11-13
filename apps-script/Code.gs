@@ -296,7 +296,9 @@ function handleListEmpresas_(body) {
 }
 
 function handleSaveEmpresa_(body, edita) {
-  requireAdmin_(body);
+  var user = requireRol_(body, ['admin', 'auditor']);
+  // Un auditor limitado a ciertas empresas no vería la nueva: solo puede crear si tiene acceso a todas.
+  if (!edita && !veEmpresa_(user, '*') && user.rol !== 'admin') throw new Error('Tu usuario está limitado a ciertas empresas: pídele al Admin que la cree.');
   var nombre = String(body.nombre || '').trim().slice(0, 60);
   var color = colorValido_(body.color);
   var activo = body.activo !== false;
@@ -308,6 +310,7 @@ function handleSaveEmpresa_(body, edita) {
   if (edita) {
     fila = filaPorId_(sheet, COL_EMP.id, body.id);
     if (!fila) throw new Error('La empresa ya no existe.');
+    if (!veEmpresa_(user, String(fila.valores[COL_EMP.id]).trim())) throw new Error('No tienes acceso a esa empresa.');
   }
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][COL_EMP.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {

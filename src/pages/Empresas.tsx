@@ -14,7 +14,7 @@ import { useEmpresas } from '@/hooks/useCatalogo'
 import type { Empresa } from '@/lib/tipos'
 
 export default function Empresas() {
-  const { esAdmin } = useAuth()
+  const { esAdmin, puedeAuditar } = useAuth()
   const navigate = useNavigate()
   const { data, loading, error, refetch, crear, editar, eliminar } = useEmpresas()
 
@@ -23,10 +23,10 @@ export default function Empresas() {
   const [borrando, setBorrando] = useState(false)
 
   useEffect(() => {
-    if (!esAdmin) navigate('/', { replace: true })
-  }, [esAdmin, navigate])
+    if (!puedeAuditar) navigate('/', { replace: true })
+  }, [puedeAuditar, navigate])
 
-  if (!esAdmin) return null
+  if (!puedeAuditar) return null
 
   return (
     <div>
@@ -94,10 +94,14 @@ export default function Empresas() {
           setModalForm(null)
           refetch()
         }}
-        onBorrar={() => {
-          setModalBorrar(modalForm === 'nueva' ? null : modalForm)
-          setModalForm(null)
-        }}
+        onBorrar={
+          esAdmin
+            ? () => {
+                setModalBorrar(modalForm === 'nueva' ? null : modalForm)
+                setModalForm(null)
+              }
+            : undefined
+        }
         crear={crear}
         editar={editar}
       />
