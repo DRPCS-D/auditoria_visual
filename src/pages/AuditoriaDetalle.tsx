@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, FileDown, Lock, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, FileDown, Info, Lock, RotateCcw, Save, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -274,6 +274,16 @@ export default function AuditoriaDetalle() {
                         </p>
                         {editable && resp.p === null && (
                           <p className="mt-0.5 text-xs font-medium text-warning">Sin calificar</p>
+                        )}
+                        {it.instrucciones && (
+                          <details className="group mt-1 text-xs">
+                            <summary className="inline-flex cursor-pointer select-none items-center gap-1 text-primary hover:underline">
+                              <Info className="size-3.5" /> Instrucciones
+                            </summary>
+                            <p className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-secondary/60 p-2 text-muted-foreground">
+                              {it.instrucciones}
+                            </p>
+                          </details>
                         )}
                         {editable ? (
                           <Textarea

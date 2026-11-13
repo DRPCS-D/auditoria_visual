@@ -36,6 +36,8 @@ export interface Criterio {
   texto: string
   /** Puntaje máximo. */
   max: number
+  /** Guía para quien audita (la «nota» de la celda en el Excel); opcional. */
+  instrucciones?: string
 }
 
 export interface Seccion {

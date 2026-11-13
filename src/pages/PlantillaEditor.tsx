@@ -229,6 +229,14 @@ export default function PlantillaEditor() {
                     maxLength={600}
                     onChange={(e) => cambiarItem(i, j, { texto: e.target.value })}
                   />
+                  <Textarea
+                    aria-label={`Instrucciones del criterio ${j + 1} de la sección ${i + 1}`}
+                    className="min-h-14 min-w-0 flex-1 basis-64 text-xs"
+                    placeholder="Instrucciones para el auditor (opcional)"
+                    value={it.instrucciones ?? ''}
+                    maxLength={2000}
+                    onChange={(e) => cambiarItem(i, j, { instrucciones: e.target.value })}
+                  />
                   <label className="flex flex-col text-[11px] text-muted-foreground">
                     Máx.
                     <Input

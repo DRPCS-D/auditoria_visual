@@ -491,7 +491,10 @@ function normalizarSecciones_(secciones, escalaMax) {
         if (!isFinite(max) || max <= 0) max = escalaMax;
         if (max > 1000) throw new Error('El puntaje máximo de un criterio no puede pasar de 1000.');
         total++;
-        return { id: idUnico(it.id), texto: texto, max: max };
+        var instrucciones = String(it.instrucciones || '').trim().slice(0, 2000);
+        var crit = { id: idUnico(it.id), texto: texto, max: max };
+        if (instrucciones) crit.instrucciones = instrucciones;
+        return crit;
       })
     };
   });
