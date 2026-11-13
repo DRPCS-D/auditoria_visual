@@ -231,6 +231,11 @@ export default function AuditoriaDetalle() {
                   {i + 1}. {s.titulo}
                 </span>
                 <span className="text-xs font-medium tabular-nums opacity-90">
+                  {editable && s.items.some((it) => (respuestas[it.id]?.p ?? null) === null) && (
+                    <span className="mr-2 rounded-full bg-warning px-2 py-0.5 text-[11px] text-black">
+                      Faltan {s.items.filter((it) => (respuestas[it.id]?.p ?? null) === null).length}
+                    </span>
+                  )}
                   {numero(r.obtenido)} / {numero(r.maximo)} · {porcentaje(r.cumplimiento)}
                 </span>
               </header>
@@ -239,13 +244,23 @@ export default function AuditoriaDetalle() {
                   const resp = respuestas[it.id] ?? vacia
                   const t = tendencia(resp.a, resp.p, it.max)
                   return (
-                    <div key={it.id} className="grid gap-3 px-4 py-3 md:grid-cols-[2rem_minmax(0,1fr)_auto]">
+                    <div
+                      key={it.id}
+                      id={`crit-${it.id}`}
+                      className={cn(
+                        'grid scroll-mt-20 gap-3 border-l-4 px-4 py-3 md:grid-cols-[2rem_minmax(0,1fr)_auto]',
+                        editable && resp.p === null ? 'border-warning bg-warning/10' : 'border-transparent',
+                      )}
+                    >
                       <span className="hidden pt-0.5 text-right text-xs tabular-nums text-muted-foreground md:block">{j + 1}</span>
                       <div className="min-w-0">
                         <p className="text-sm text-foreground">
                           <span className="mr-1.5 text-xs tabular-nums text-muted-foreground md:hidden">{j + 1}.</span>
                           {it.texto}
                         </p>
+                        {editable && resp.p === null && (
+                          <p className="mt-0.5 text-xs font-medium text-warning">Sin calificar</p>
+                        )}
                         {editable ? (
                           <Textarea
                             aria-label={`Hallazgo del criterio ${i + 1}.${j + 1}`}
@@ -292,7 +307,16 @@ export default function AuditoriaDetalle() {
               {porcentaje(resumen.cumplimiento)}
             </span>
             {editable && resumen.sinPuntuar > 0 && (
-              <span className="ml-2 text-xs text-muted-foreground">Faltan {resumen.sinPuntuar} por puntuar</span>
+              <button
+                type="button"
+                className="ml-2 text-xs font-medium text-warning underline"
+                onClick={() => {
+                  const primero = auditoria.secciones.flatMap((s) => s.items).find((it) => (respuestas[it.id]?.p ?? null) === null)
+                  if (primero) document.getElementById(`crit-${primero.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }}
+              >
+                Faltan {resumen.sinPuntuar} por puntuar · ir al primero
+              </button>
             )}
             {sucio && <span className="ml-2 text-xs text-warning">Cambios sin guardar</span>}
           </div>
