@@ -616,6 +616,11 @@ function mapasNombres_() {
   };
 }
 
+/** El auditor solo ve las auditorías que creó él; admin y consulta, todas las de sus empresas. */
+function esAjena_(user, creadoPor) {
+  return user.rol === 'auditor' && String(creadoPor).trim().toUpperCase() !== String(user.usuario).trim().toUpperCase();
+}
+
 function handleListAuditorias_(body) {
   var user = requireAuth_(body);
   var rows = getSheet_(SHEET_AUDITORIAS).getDataRange().getValues();
@@ -624,6 +629,7 @@ function handleListAuditorias_(body) {
   for (var i = 1; i < rows.length; i++) {
     if (!String(rows[i][COL_AUD.id]).trim()) continue;
     if (!veEmpresa_(user, String(rows[i][COL_AUD.empresaId]).trim())) continue;
+    if (esAjena_(user, rows[i][COL_AUD.creadoPor])) continue;
     lista.push(rowToAuditoriaResumen_(rows[i], mapas));
   }
   // Más nuevas primero (por fecha de la auditoría y luego por folio).
@@ -640,6 +646,7 @@ function auditoriaVisible_(user, id) {
   var fila = filaPorId_(sheet, COL_AUD.id, id);
   if (!fila) throw new Error('La auditoría ya no existe.');
   if (!veEmpresa_(user, String(fila.valores[COL_AUD.empresaId]).trim())) throw new Error('No tienes acceso a esta auditoría.');
+  if (esAjena_(user, fila.valores[COL_AUD.creadoPor])) throw new Error('Esta auditoría la hizo otro auditor.');
   return { sheet: sheet, indice: fila.indice, valores: fila.valores };
 }
 
