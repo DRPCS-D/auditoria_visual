@@ -15,6 +15,15 @@ const COLOR_TENDENCIA: Record<Exclude<Tendencia, ''>, RGB> = {
   IGUAL: [110, 110, 110],
 }
 
+/** Densidad de la tabla: de la más cómoda a la más apretada. Se usa la primera con la que el informe cabe en 2 hojas. */
+const DENSIDADES = [
+  { fuente: 8, relleno: 1.6 },
+  { fuente: 7.5, relleno: 1.2 },
+  { fuente: 7, relleno: 0.9 },
+  { fuente: 6.5, relleno: 0.7 },
+]
+const HOJAS_OBJETIVO = 2
+
 /**
  * Genera y descarga el informe de la auditoría en PDF, con el mismo formato del Excel original:
  * cabecera con empresa y formato, datos de la tienda y resultado, y la tabla de criterios por sección.
@@ -113,6 +122,7 @@ export async function descargarInformePdf(a: Auditoria): Promise<void> {
     { content: porcentaje(res.cumplimiento), styles: estiloFinal },
   ])
 
+  let densidad = DENSIDADES[0]
   const yTabla = y0 + datos.length * alto + 5
   const opciones = (
     d: typeof doc,
@@ -124,8 +134,8 @@ export async function descargarInformePdf(a: Auditoria): Promise<void> {
       startY,
       head: [['N.º', 'Criterio de evaluación', 'Hallazgo / observación', 'Anterior', 'Máximo', 'Puntaje actual', 'Tendencia']],
       body: filas,
-      margin: { left: M, right: M, top: M, bottom: 14 },
-      styles: { fontSize: 8, cellPadding: 1.6, lineColor: [200, 200, 200], lineWidth: 0.15, valign: 'middle', textColor: 20 },
+      margin: { left: M, right: M, top: M, bottom: 12 },
+      styles: { fontSize: densidad.fuente, cellPadding: densidad.relleno, lineColor: [200, 200, 200], lineWidth: 0.15, valign: 'middle', textColor: 20 },
       headStyles: { fillColor: encabezado, textColor: 255, fontStyle: 'bold', halign: 'center' },
       columnStyles: {
         0: { cellWidth: 11 },
@@ -155,19 +165,34 @@ export async function descargarInformePdf(a: Auditoria): Promise<void> {
 
   // Un título de sección no debe quedar solo al pie de una hoja: se hace una pasada de prueba para ver dónde cae cada fila
   // y, si algún título quedó huérfano, se corta la tabla justo antes de él (se repite por si el corte genera otro caso).
-  const cortes: number[] = []
-  for (let intento = 0; intento < 12; intento++) {
-    const prueba = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' })
-    const paginaDeFila: number[] = []
-    dibujar(prueba, cortes, (g, pag) => {
-      paginaDeFila[g] = pag
-    })
-    const huerfana = [...filasSeccion].find(
-      (i) => !cortes.includes(i) && i + 1 < body.length && paginaDeFila[i + 1] !== paginaDeFila[i],
-    )
-    if (huerfana === undefined) break
-    cortes.push(huerfana)
-    cortes.sort((x, y) => x - y)
+  const calcularCortes = (): { cortes: number[]; hojas: number } => {
+    const cortes: number[] = []
+    let hojas = 1
+    for (let intento = 0; intento < 12; intento++) {
+      const prueba = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' })
+      const paginaDeFila: number[] = []
+      dibujar(prueba, cortes, (g, pag) => {
+        paginaDeFila[g] = pag
+      })
+      hojas = prueba.getNumberOfPages()
+      const huerfana = [...filasSeccion].find(
+        (i) => !cortes.includes(i) && i + 1 < body.length && paginaDeFila[i + 1] !== paginaDeFila[i],
+      )
+      if (huerfana === undefined) break
+      cortes.push(huerfana)
+      cortes.sort((x, y) => x - y)
+    }
+    return { cortes, hojas }
+  }
+
+  // Se prueba cada densidad, de la más cómoda a la más apretada, y se queda con la primera que cabe en 2 hojas.
+  // Si el informe ya pasa de 3 hojas con la letra normal, no se aprieta (quedaría ilegible): se deja como está.
+  let cortes: number[] = []
+  for (const d of DENSIDADES) {
+    densidad = d
+    const prueba = calcularCortes()
+    cortes = prueba.cortes
+    if (prueba.hojas <= HOJAS_OBJETIVO || (d === DENSIDADES[0] && prueba.hojas > HOJAS_OBJETIVO + 1)) break
   }
   dibujar(doc, cortes)
 
