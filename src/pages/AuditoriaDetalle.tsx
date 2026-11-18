@@ -170,7 +170,8 @@ export default function AuditoriaDetalle() {
     }
   }
 
-  const puedeBorrar = esAdmin || (puedeAuditar && auditoria.estado === 'borrador')
+  // Una auditoría finalizada no se borra (el admin puede reabrirla primero).
+  const puedeBorrar = puedeAuditar && auditoria.estado === 'borrador'
   const hayAnterior = auditoria.anteriorFecha !== ''
 
   return (

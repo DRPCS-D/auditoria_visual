@@ -803,8 +803,8 @@ function handleReabrirAuditoria_(body) {
 function handleDeleteAuditoria_(body) {
   var user = requireRol_(body, ['admin', 'auditor']);
   var a = auditoriaVisible_(user, body.id);
-  if (user.rol !== 'admin' && normalizarEstado_(a.valores[COL_AUD.estado]) !== 'borrador') {
-    throw new Error('Solo un admin puede borrar una auditoría finalizada.');
+  if (normalizarEstado_(a.valores[COL_AUD.estado]) !== 'borrador') {
+    throw new Error('Una auditoría finalizada no se puede borrar.');
   }
   conLock_(function () {
     borrarFila_(a.sheet, a.indice);
