@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -18,15 +18,23 @@ aplicarTema()
 // de vite.config.ts); en `npm run dev` no hay nada que registrar.
 if (import.meta.env.PROD) registerServiceWorker()
 
+// Router con datos (en vez de <BrowserRouter>): hace falta para poder avisar al salir de una pantalla con cambios sin guardar.
+const router = createBrowserRouter([
+  {
+    path: '*',
+    element: (
+      <AuthProvider>
+        <App />
+        <Toaster position="bottom-right" richColors closeButton />
+      </AuthProvider>
+    ),
+  },
+])
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-          <Toaster position="bottom-right" richColors closeButton />
-        </AuthProvider>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </ErrorBoundary>
   </StrictMode>,
 )

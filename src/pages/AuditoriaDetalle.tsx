@@ -1,6 +1,6 @@
 import { ArrowLeft, CheckCircle2, FileDown, Info, Lock, RotateCcw, Save, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Badge, type TonoBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -77,6 +77,12 @@ export default function AuditoriaDetalle() {
     window.addEventListener('beforeunload', f)
     return () => window.removeEventListener('beforeunload', f)
   }, [sucio])
+
+  // Aviso al cambiar de pantalla dentro de la app con cambios sin guardar (la ref evita que un guardado o borrado recién
+  // hecho, cuyo estado aún no se actualizó, dispare el aviso).
+  const sucioRef = useRef(false)
+  sucioRef.current = sucio
+  const bloqueo = useBlocker(({ currentLocation, nextLocation }) => sucioRef.current && currentLocation.pathname !== nextLocation.pathname)
 
   const resumen = useMemo(() => (auditoria ? resumir(auditoria.secciones, respuestas) : null), [auditoria, respuestas])
 
@@ -162,6 +168,7 @@ export default function AuditoriaDetalle() {
     void sincronizar()
     if (que === 'borrar') {
       toast.success('Auditoría borrada.')
+      sucioRef.current = false
       setSucio(false)
       navigate('/auditorias', { replace: true })
     } else {
@@ -397,6 +404,15 @@ export default function AuditoriaDetalle() {
         mensaje="Se borra definitivamente, con sus puntajes y observaciones."
         onCancelar={() => setConfirmar(null)}
         onConfirmar={() => accion('borrar')}
+      />
+
+      <ConfirmModal
+        abierto={bloqueo.state === 'blocked'}
+        titulo="Cambios sin guardar"
+        textoConfirmar="Salir sin guardar"
+        mensaje="Tienes cambios sin guardar en esta auditoría. Si sales ahora se pierden."
+        onCancelar={() => bloqueo.reset?.()}
+        onConfirmar={() => bloqueo.proceed?.()}
       />
     </div>
   )
