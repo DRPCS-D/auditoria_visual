@@ -219,10 +219,10 @@ export default function AuditoriaDetalle() {
           <Input value={encargada} disabled={!editable} maxLength={80} onChange={(e) => (setEncargada(e.target.value), setSucio(true))} />
         </Field>
         <Field label="Auditor">
-          <Input value={auditor} disabled={!editable} maxLength={80} onChange={(e) => (setAuditor(e.target.value), setSucio(true))} />
+          <Input value={auditor} disabled readOnly />
         </Field>
         <Field label="Fecha">
-          <Input type="date" value={fecha} disabled={!editable} onChange={(e) => (setFecha(e.target.value), setSucio(true))} />
+          <Input type="date" value={fecha} disabled readOnly />
         </Field>
       </div>
 

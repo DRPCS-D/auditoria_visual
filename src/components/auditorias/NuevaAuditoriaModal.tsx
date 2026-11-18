@@ -138,10 +138,10 @@ export function NuevaAuditoriaModal({
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fecha *">
-          <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <Input type="date" value={fecha} disabled readOnly />
         </Field>
         <Field label="Auditor *">
-          <Input value={auditor} onChange={(e) => setAuditor(e.target.value)} maxLength={80} />
+          <Input value={auditor} disabled readOnly />
         </Field>
       </div>
       <Field label="Encargada" hint="Se completa con la encargada de la sucursal; puedes cambiarla.">

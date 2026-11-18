@@ -690,7 +690,8 @@ function handleCreateAuditoria_(body) {
 
   var fecha = String(body.fecha || '').trim();
   if (!fechaValida_(fecha)) throw new Error('La fecha no es válida.');
-  var auditor = String(body.auditor || '').trim().slice(0, 80);
+  // El auditor es siempre quien crea la auditoría.
+  var auditor = String(user.nombre || user.usuario || '').trim().slice(0, 80);
   if (!auditor) throw new Error('El auditor es obligatorio.');
   var encargada = String(body.encargada || sucursal.encargada || '').trim().slice(0, 80);
 
