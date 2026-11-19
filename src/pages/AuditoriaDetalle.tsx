@@ -36,7 +36,7 @@ function leerNumero(valor: string, max: number): number | null {
 export default function AuditoriaDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { puedeAuditar, esAdmin } = useAuth()
+  const { puedeAuditar } = useAuth()
 
   const [auditoria, setAuditoria] = useState<Auditoria | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -203,7 +203,7 @@ export default function AuditoriaDetalle() {
           <Button variant="outline" onClick={descargarPdf} disabled={trabajando !== null}>
             <FileDown /> {trabajando === 'pdf' ? 'Generando…' : 'Descargar PDF'}
           </Button>
-          {esAdmin && auditoria.estado === 'finalizada' && (
+          {puedeAuditar && auditoria.estado === 'finalizada' && (
             <Button variant="outline" onClick={() => setConfirmar('reabrir')} disabled={trabajando !== null}>
               <RotateCcw /> Reabrir
             </Button>
@@ -218,7 +218,7 @@ export default function AuditoriaDetalle() {
 
       {!editable && auditoria.estado === 'finalizada' && (
         <p className="mb-4 flex items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
-          <Lock className="size-3.5" /> Auditoría finalizada: solo lectura{esAdmin ? ' (puedes reabrirla)' : ''}.
+          <Lock className="size-3.5" /> Auditoría finalizada: solo lectura{puedeAuditar ? ' (puedes reabrirla)' : ''}.
         </p>
       )}
 

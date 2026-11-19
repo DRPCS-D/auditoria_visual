@@ -789,7 +789,7 @@ function handleSaveAuditoria_(body) {
 }
 
 function handleReabrirAuditoria_(body) {
-  var user = requireAdmin_(body);
+  var user = requireRol_(body, ['admin', 'auditor']);
   var a = auditoriaVisible_(user, body.id);
   conLock_(function () {
     a.sheet.getRange(a.indice, COL_AUD.estado + 1).setValue('borrador');
