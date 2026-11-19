@@ -91,7 +91,7 @@ export async function callApi<T = Record<string, unknown>>(
     // En 'login' un rechazo es simplemente una contraseña mal escrita, no una
     // sesión caída: ahí no hay nada que cerrar.
     if (action !== 'login' && esSesionInvalida(obj?.codigo, obj?.error)) alPerderSesion?.()
-    throw new Error(obj?.error || 'Error desconocido del servidor.')
+    throw Object.assign(new Error(obj?.error || 'Error desconocido del servidor.'), { codigo: obj?.codigo ?? '' })
   }
   // Solo en escrituras: la acción `getRevisions` la responde la propia caché y no debe reciclarse a sí misma.
   if (action !== 'getRevisions' && obj.revisiones && typeof obj.revisiones === 'object') alRecibirRevisiones?.(obj.revisiones)

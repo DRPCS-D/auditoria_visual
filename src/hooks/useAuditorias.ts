@@ -19,6 +19,8 @@ export interface DatosGuardarAuditoria {
   fecha: string
   respuestas: Respuestas
   finalizar: boolean
+  /** `version` de la auditoría tal como se cargó o se guardó por última vez. */
+  version: string
 }
 
 export function useAuditorias() {
@@ -27,7 +29,7 @@ export function useAuditorias() {
   const crear = (d: DatosNuevaAuditoria) =>
     ejecutarConDatos<{ id: string }>('createAuditoria', { ...d }, 'No se pudo crear la auditoría.')
   const eliminar = (id: string) => ejecutar('deleteAuditoria', { id }, 'No se pudo borrar la auditoría.')
-  const reabrir = (id: string) => ejecutar('reabrirAuditoria', { id }, 'No se pudo reabrir la auditoría.')
+  const reabrir = (id: string) => ejecutarConDatos<{ version: string }>('reabrirAuditoria', { id }, 'No se pudo reabrir la auditoría.')
   return { ...lista, crear, eliminar, reabrir }
 }
 
@@ -38,7 +40,7 @@ export async function cargarAuditoria(id: string): Promise<Auditoria> {
 }
 
 export function guardarAuditoria(id: string, d: DatosGuardarAuditoria) {
-  return ejecutar('saveAuditoria', { id, ...d }, 'No se pudo guardar la auditoría.')
+  return ejecutarConDatos<{ version: string }>('saveAuditoria', { id, ...d }, 'No se pudo guardar la auditoría.')
 }
 
 /** Cambia al instante una auditoría en la lista ya cargada, sin esperar a la descarga. */

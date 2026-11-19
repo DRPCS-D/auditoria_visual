@@ -9,7 +9,7 @@ import { Field, Input, Textarea } from '@/components/ui/field'
 import { ConfirmModal } from '@/components/ui/modal'
 import { useAuth } from '@/hooks/useAuth'
 import { cargarAuditoria, guardarAuditoria, parchearAuditoria, quitarAuditoria } from '@/hooks/useAuditorias'
-import { ejecutar } from '@/lib/ejecutar'
+import { ejecutarConDatos } from '@/lib/ejecutar'
 import { fechaCorta } from '@/lib/documentos/formato'
 import { numero, porcentaje, resumir, tendencia, type Tendencia } from '@/lib/puntaje'
 import { sincronizar } from '@/lib/tablas'
@@ -47,6 +47,7 @@ export default function AuditoriaDetalle() {
   const [sucio, setSucio] = useState(false)
   const [trabajando, setTrabajando] = useState<'guardar' | 'finalizar' | 'pdf' | 'reabrir' | 'borrar' | null>(null)
   const [confirmar, setConfirmar] = useState<'finalizar' | 'borrar' | 'reabrir' | null>(null)
+  const [conflicto, setConflicto] = useState(false)
 
   const aplicar = useCallback((a: Auditoria) => {
     setAuditoria(a)
@@ -108,22 +109,25 @@ export default function AuditoriaDetalle() {
   async function guardar(finalizar: boolean) {
     if (!auditoria || !resumen) return false
     setTrabajando(finalizar ? 'finalizar' : 'guardar')
-    const { error: err } = await guardarAuditoria(auditoria.id, {
+    const { error: err, data, codigo } = await guardarAuditoria(auditoria.id, {
       encargada: encargada.trim(),
       auditor: auditor.trim(),
       fecha,
       respuestas,
       finalizar,
+      version: auditoria.version,
     })
     setTrabajando(null)
-    if (err) {
-      toast.error(err)
+    if (err || !data) {
+      // Otro dispositivo o ventana guardó antes: se avisa en vez de pisar sus cambios.
+      if (codigo === 'VERSION') setConflicto(true)
+      else toast.error(err ?? 'No se pudo guardar la auditoría.')
       return false
     }
     toast.success(finalizar ? 'Auditoría finalizada.' : 'Borrador guardado.')
     // Se refleja al instante lo que ya se sabe (sin volver a descargar nada) y la sincronización sigue en segundo plano.
     const nuevoEstado = finalizar ? 'finalizada' : auditoria.estado
-    setAuditoria({ ...auditoria, encargada: encargada.trim(), auditor: auditor.trim(), fecha, respuestas, estado: nuevoEstado })
+    setAuditoria({ ...auditoria, encargada: encargada.trim(), auditor: auditor.trim(), fecha, respuestas, estado: nuevoEstado, version: data.version })
     setSucio(false)
     parchearAuditoria(auditoria.id, {
       encargada: encargada.trim(),
@@ -155,7 +159,7 @@ export default function AuditoriaDetalle() {
   async function accion(que: 'reabrir' | 'borrar') {
     if (!auditoria) return
     setTrabajando(que)
-    const { error: err } = await ejecutar(
+    const { error: err, data } = await ejecutarConDatos<{ version?: string }>(
       que === 'reabrir' ? 'reabrirAuditoria' : 'deleteAuditoria',
       { id: auditoria.id },
       'No se pudo completar la acción.',
@@ -173,7 +177,7 @@ export default function AuditoriaDetalle() {
       navigate('/auditorias', { replace: true })
     } else {
       toast.success('Auditoría reabierta.')
-      setAuditoria((a) => (a ? { ...a, estado: 'borrador' } : a))
+      setAuditoria((a) => (a ? { ...a, estado: 'borrador', version: data?.version ?? a.version } : a))
     }
   }
 
@@ -404,6 +408,18 @@ export default function AuditoriaDetalle() {
         mensaje="Se borra definitivamente, con sus puntajes y observaciones."
         onCancelar={() => setConfirmar(null)}
         onConfirmar={() => accion('borrar')}
+      />
+
+      <ConfirmModal
+        abierto={conflicto}
+        titulo="Se guardó desde otro lugar"
+        textoConfirmar="Recargar"
+        mensaje="Esta auditoría se guardó desde otro dispositivo o ventana. Si recargas, verás esa versión y se pierden tus cambios no guardados. Si prefieres conservarlos, cancela y cópialos antes de recargar."
+        onCancelar={() => setConflicto(false)}
+        onConfirmar={async () => {
+          setConflicto(false)
+          await cargar()
+        }}
       />
 
       <ConfirmModal

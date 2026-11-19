@@ -265,7 +265,10 @@ function conLock_(fn) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    return fn();
+    var resultado = fn();
+    // Se vuelca todo a la hoja antes de soltar el lock: así la siguiente petición ya lee lo que esta escribió.
+    SpreadsheetApp.flush();
+    return resultado;
   } finally {
     liberar_(lock);
   }
@@ -304,27 +307,28 @@ function handleSaveEmpresa_(body, edita) {
   var activo = body.activo !== false;
   if (!nombre) throw new Error('El nombre es obligatorio.');
 
-  var sheet = getSheet_(SHEET_EMPRESAS);
-  var rows = sheet.getDataRange().getValues();
-  var fila = null;
-  if (edita) {
-    fila = filaPorId_(sheet, COL_EMP.id, body.id);
-    if (!fila) throw new Error('La empresa ya no existe.');
-    if (!veEmpresa_(user, String(fila.valores[COL_EMP.id]).trim())) throw new Error('No tienes acceso a esa empresa.');
-  }
-  for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][COL_EMP.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {
-      throw new Error('Ya existe una empresa con ese nombre.');
-    }
-  }
-
   conLock_(function () {
+    var sheet = getSheet_(SHEET_EMPRESAS);
+    var rows = sheet.getDataRange().getValues();
+    var fila = null;
+    if (edita) {
+      fila = filaPorId_(sheet, COL_EMP.id, body.id);
+      if (!fila) throw new Error('La empresa ya no existe.');
+      if (!veEmpresa_(user, String(fila.valores[COL_EMP.id]).trim())) throw new Error('No tienes acceso a esa empresa.');
+    }
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][COL_EMP.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {
+        throw new Error('Ya existe una empresa con ese nombre.');
+      }
+    }
+
     if (fila) {
       sheet.getRange(fila.indice, COL_EMP.nombre + 1, 1, 3).setValues([[nombre, activo, color]]);
     } else {
       sheet.appendRow([nuevoId_(), nombre, activo, color]);
     }
     bumpRevision_('empresas');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -332,17 +336,18 @@ function handleSaveEmpresa_(body, edita) {
 /** Solo se borra si no tiene sucursales, plantillas ni auditorías; si tiene, hay que desactivarla. */
 function handleDeleteEmpresa_(body) {
   requireAdmin_(body);
-  var sheet = getSheet_(SHEET_EMPRESAS);
-  var fila = filaPorId_(sheet, COL_EMP.id, body.id);
-  if (!fila) throw new Error('La empresa ya no existe.');
-  var id = String(body.id).trim();
-  if (hayFilaCon_(SHEET_SUCURSALES, COL_SUC.empresaId, id) || hayFilaCon_(SHEET_PLANTILLAS, COL_PLA.empresaId, id) ||
-      hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.empresaId, id)) {
-    throw new Error('La empresa tiene sucursales, plantillas o auditorías. Desactívala en lugar de borrarla.');
-  }
   conLock_(function () {
+    var sheet = getSheet_(SHEET_EMPRESAS);
+    var fila = filaPorId_(sheet, COL_EMP.id, body.id);
+    if (!fila) throw new Error('La empresa ya no existe.');
+    var id = String(body.id).trim();
+    if (hayFilaCon_(SHEET_SUCURSALES, COL_SUC.empresaId, id) || hayFilaCon_(SHEET_PLANTILLAS, COL_PLA.empresaId, id) ||
+        hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.empresaId, id)) {
+      throw new Error('La empresa tiene sucursales, plantillas o auditorías. Desactívala en lugar de borrarla.');
+    }
     borrarFila_(sheet, fila.indice);
     bumpRevision_('empresas');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -391,32 +396,34 @@ function handleSaveSucursal_(body, edita) {
   var activo = body.activo !== false;
   if (!nombre) throw new Error('El nombre es obligatorio.');
 
-  var sheet = getSheet_(SHEET_SUCURSALES);
-  var rows = sheet.getDataRange().getValues();
-  var fila = null;
-  if (edita) {
-    fila = filaPorId_(sheet, COL_SUC.id, body.id);
-    if (!fila) throw new Error('La sucursal ya no existe.');
-    if (!veEmpresa_(user, String(fila.valores[COL_SUC.empresaId]).trim())) throw new Error('No tienes acceso a esa sucursal.');
-    if (String(fila.valores[COL_SUC.empresaId]).trim() !== empresa.id &&
-        hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.sucursalId, String(body.id).trim())) {
-      throw new Error('La sucursal ya tiene auditorías: no se puede pasar a otra empresa.');
-    }
-  }
-  for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][COL_SUC.empresaId]).trim() === empresa.id &&
-        String(rows[i][COL_SUC.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {
-      throw new Error('Ya existe una sucursal con ese nombre en la empresa.');
-    }
-  }
-
   conLock_(function () {
+    empresa = validarEmpresa_(body.empresaId);
+    var sheet = getSheet_(SHEET_SUCURSALES);
+    var rows = sheet.getDataRange().getValues();
+    var fila = null;
+    if (edita) {
+      fila = filaPorId_(sheet, COL_SUC.id, body.id);
+      if (!fila) throw new Error('La sucursal ya no existe.');
+      if (!veEmpresa_(user, String(fila.valores[COL_SUC.empresaId]).trim())) throw new Error('No tienes acceso a esa sucursal.');
+      if (String(fila.valores[COL_SUC.empresaId]).trim() !== empresa.id &&
+          hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.sucursalId, String(body.id).trim())) {
+        throw new Error('La sucursal ya tiene auditorías: no se puede pasar a otra empresa.');
+      }
+    }
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][COL_SUC.empresaId]).trim() === empresa.id &&
+          String(rows[i][COL_SUC.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {
+        throw new Error('Ya existe una sucursal con ese nombre en la empresa.');
+      }
+    }
+
     if (fila) {
       sheet.getRange(fila.indice, COL_SUC.empresaId + 1, 1, 5).setValues([[empresa.id, nombre, encargada, direccion, activo]]);
     } else {
       sheet.appendRow([nuevoId_(), empresa.id, nombre, encargada, direccion, activo]);
     }
     bumpRevision_('sucursales');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -424,15 +431,16 @@ function handleSaveSucursal_(body, edita) {
 /** Solo se borra si no tiene auditorías; si tiene, hay que desactivarla. */
 function handleDeleteSucursal_(body) {
   requireAdmin_(body);
-  var sheet = getSheet_(SHEET_SUCURSALES);
-  var fila = filaPorId_(sheet, COL_SUC.id, body.id);
-  if (!fila) throw new Error('La sucursal ya no existe.');
-  if (hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.sucursalId, String(body.id).trim())) {
-    throw new Error('La sucursal tiene auditorías. Desactívala en lugar de borrarla.');
-  }
   conLock_(function () {
+    var sheet = getSheet_(SHEET_SUCURSALES);
+    var fila = filaPorId_(sheet, COL_SUC.id, body.id);
+    if (!fila) throw new Error('La sucursal ya no existe.');
+    if (hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.sucursalId, String(body.id).trim())) {
+      throw new Error('La sucursal tiene auditorías. Desactívala en lugar de borrarla.');
+    }
     borrarFila_(sheet, fila.indice);
     bumpRevision_('sucursales');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -522,29 +530,30 @@ function handleSavePlantilla_(body, edita) {
   var json = JSON.stringify({ secciones: secciones });
   if (json.length > MAX_JSON) throw new Error('La plantilla es demasiado grande. Reduce el texto o la cantidad de criterios.');
 
-  var sheet = getSheet_(SHEET_PLANTILLAS);
-  var rows = sheet.getDataRange().getValues();
-  var fila = null;
-  if (edita) {
-    fila = filaPorId_(sheet, COL_PLA.id, body.id);
-    if (!fila) throw new Error('La plantilla ya no existe.');
-    if (!veEmpresa_(user, String(fila.valores[COL_PLA.empresaId]).trim())) throw new Error('No tienes acceso a esa plantilla.');
-  }
-  for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][COL_PLA.empresaId]).trim() === empresa.id &&
-        String(rows[i][COL_PLA.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {
-      throw new Error('Ya existe una plantilla con ese nombre en la empresa.');
+  var id = conLock_(function () {
+    empresa = validarEmpresa_(body.empresaId);
+    var sheet = getSheet_(SHEET_PLANTILLAS);
+    var rows = sheet.getDataRange().getValues();
+    var fila = null;
+    if (edita) {
+      fila = filaPorId_(sheet, COL_PLA.id, body.id);
+      if (!fila) throw new Error('La plantilla ya no existe.');
+      if (!veEmpresa_(user, String(fila.valores[COL_PLA.empresaId]).trim())) throw new Error('No tienes acceso a esa plantilla.');
     }
-  }
-
-  var id = fila ? String(fila.valores[COL_PLA.id]).trim() : nuevoId_();
-  conLock_(function () {
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][COL_PLA.empresaId]).trim() === empresa.id &&
+          String(rows[i][COL_PLA.nombre]).trim().toUpperCase() === nombre.toUpperCase() && (!fila || fila.indice !== i + 1)) {
+        throw new Error('Ya existe una plantilla con ese nombre en la empresa.');
+      }
+    }
+    var idPlantilla = fila ? String(fila.valores[COL_PLA.id]).trim() : nuevoId_();
     if (fila) {
       sheet.getRange(fila.indice, COL_PLA.empresaId + 1, 1, 7).setValues([[empresa.id, nombre, codigo, titulo, escalaMax, activo, json]]);
     } else {
-      sheet.appendRow([id, empresa.id, nombre, codigo, titulo, escalaMax, activo, json, user.usuario, ahoraLocal_()]);
+      sheet.appendRow([idPlantilla, empresa.id, nombre, codigo, titulo, escalaMax, activo, json, user.usuario, ahoraLocal_()]);
     }
     bumpRevision_('plantillas');
+    return idPlantilla;
   });
   return jsonOut_({ ok: true, id: id });
 }
@@ -552,16 +561,17 @@ function handleSavePlantilla_(body, edita) {
 /** Las auditorías ya hechas guardan su propia copia: borrar la plantilla no las afecta. */
 function handleDeletePlantilla_(body) {
   requireAdmin_(body);
-  var sheet = getSheet_(SHEET_PLANTILLAS);
-  var fila = filaPorId_(sheet, COL_PLA.id, body.id);
-  if (!fila) throw new Error('La plantilla ya no existe.');
-  var enBorrador = hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.plantillaId, String(body.id).trim(), function (r) {
-    return String(r[COL_AUD.estado]).trim() === 'borrador';
-  });
-  if (enBorrador) throw new Error('Hay auditorías en borrador con esta plantilla. Termínalas o bórralas antes.');
   conLock_(function () {
+    var sheet = getSheet_(SHEET_PLANTILLAS);
+    var fila = filaPorId_(sheet, COL_PLA.id, body.id);
+    if (!fila) throw new Error('La plantilla ya no existe.');
+    var enBorrador = hayFilaCon_(SHEET_AUDITORIAS, COL_AUD.plantillaId, String(body.id).trim(), function (r) {
+      return String(r[COL_AUD.estado]).trim() === 'borrador';
+    });
+    if (enBorrador) throw new Error('Hay auditorías en borrador con esta plantilla. Termínalas o bórralas antes.');
     borrarFila_(sheet, fila.indice);
     bumpRevision_('plantillas');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -650,6 +660,16 @@ function auditoriaVisible_(user, id) {
   return { sheet: sheet, indice: fila.indice, valores: fila.valores };
 }
 
+/**
+ * Huella corta del contenido editable de una auditoría (estado, encargada y respuestas). El cliente la recibe al abrirla y la
+ * devuelve al guardar: si cambió, otra persona o dispositivo guardó antes y se rechaza para no pisar sus cambios.
+ */
+function huellaAuditoria_(valores) {
+  var texto = [normalizarEstado_(valores[COL_AUD.estado]), String(valores[COL_AUD.encargada]), String(valores[COL_AUD.respuestas])].join('|');
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, texto, Utilities.Charset.UTF_8);
+  return Utilities.base64EncodeWebSafe(bytes).slice(0, 16);
+}
+
 /** Auditoría completa (con estructura y respuestas), lista para llenar o imprimir. */
 function auditoriaCompleta_(valores) {
   var base = rowToAuditoriaResumen_(valores, mapasNombres_());
@@ -664,6 +684,7 @@ function auditoriaCompleta_(valores) {
   base.anteriorFecha = est.anteriorFecha || '';
   base.secciones = est.secciones || [];
   base.respuestas = resp;
+  base.version = huellaAuditoria_(valores);
   return base;
 }
 
@@ -738,75 +759,89 @@ function handleCreateAuditoria_(body) {
 
 function handleSaveAuditoria_(body) {
   var user = requireRol_(body, ['admin', 'auditor']);
-  var a = auditoriaVisible_(user, body.id);
-  if (normalizarEstado_(a.valores[COL_AUD.estado]) !== 'borrador') {
-    throw new Error('La auditoría ya está finalizada. Un admin puede reabrirla.');
-  }
-  var est = parsearJson_(a.valores[COL_AUD.estructura], { secciones: [] });
-
   var encargada = String(body.encargada || '').trim().slice(0, 80);
-  var auditor = String(body.auditor || '').trim().slice(0, 80);
   var fecha = String(body.fecha || '').trim();
   if (!fechaValida_(fecha)) throw new Error('La fecha no es válida.');
-  if (!auditor) throw new Error('El auditor es obligatorio.');
-
-  // Solo se aceptan respuestas de criterios que existen en la estructura de ESTA auditoría.
   var entrada = body.respuestas && typeof body.respuestas === 'object' ? body.respuestas : {};
-  var guardadas = parsearJson_(a.valores[COL_AUD.respuestas], {});
-  var respuestas = {};
-  var faltan = 0, maximo = 0, obtenido = 0;
-  est.secciones.forEach(function (s) {
-    s.items.forEach(function (it) {
-      maximo += it.max;
-      var r = entrada[it.id] || {};
-      var p = r.p === null || r.p === undefined || r.p === '' ? null : Number(r.p);
-      if (p !== null && (!isFinite(p) || p < 0 || p > it.max)) throw new Error('Un puntaje está fuera de rango (0 a ' + it.max + ').');
-      // "Anterior" lo fija el sistema al crear la auditoría: lo que mande el cliente se ignora.
-      var guardada = guardadas[it.id];
-      var an = guardada && guardada.a !== undefined ? guardada.a : null;
-      var h = String(r.h || '').slice(0, 1000);
-      if (p === null) faltan++; else obtenido += p;
-      if (p !== null || an !== null || h) respuestas[it.id] = { a: an, p: p, h: h };
-    });
-  });
-
   var finalizar = body.finalizar === true;
-  if (finalizar && faltan > 0) throw new Error('Faltan ' + faltan + ' criterio(s) por puntuar.');
-  var json = JSON.stringify(respuestas);
-  if (json.length > MAX_JSON) throw new Error('Las observaciones son demasiado largas. Acórtalas.');
 
-  conLock_(function () {
-    var f = a.indice;
-    a.sheet.getRange(f, COL_AUD.encargada + 1, 1, 3).setValues([[encargada, auditor, fecha]]);
-    a.sheet.getRange(f, COL_AUD.respuestas + 1, 1, 3).setValues([[json, maximo, obtenido]]);
-    if (finalizar) {
-      a.sheet.getRange(f, COL_AUD.estado + 1).setValue('finalizada');
-      a.sheet.getRange(f, COL_AUD.fechaFinalizada + 1).setValue(ahoraLocal_());
+  // La fila se busca y se valida dentro del lock: así no se escribe sobre otra fila si alguien borra una anterior,
+  // ni dos guardados simultáneos se saltan la comprobación de estado o de versión.
+  var version = conLock_(function () {
+    var a = auditoriaVisible_(user, body.id);
+    if (normalizarEstado_(a.valores[COL_AUD.estado]) !== 'borrador') {
+      throw new Error('La auditoría ya está finalizada. Puedes reabrirla.');
     }
+    if (body.version && String(body.version) !== huellaAuditoria_(a.valores)) {
+      var e = new Error('Esta auditoría se guardó desde otro dispositivo o ventana. Recárgala para ver los cambios.');
+      e.codigo = 'VERSION';
+      throw e;
+    }
+    var est = parsearJson_(a.valores[COL_AUD.estructura], { secciones: [] });
+
+    // Solo se aceptan respuestas de criterios que existen en la estructura de ESTA auditoría.
+    var guardadas = parsearJson_(a.valores[COL_AUD.respuestas], {});
+    var respuestas = {};
+    var faltan = 0, maximo = 0, obtenido = 0;
+    est.secciones.forEach(function (s) {
+      s.items.forEach(function (it) {
+        maximo += it.max;
+        var r = entrada[it.id] || {};
+        var p = r.p === null || r.p === undefined || r.p === '' ? null : Number(r.p);
+        if (p !== null && (!isFinite(p) || p < 0 || p > it.max)) throw new Error('Un puntaje está fuera de rango (0 a ' + it.max + ').');
+        // "Anterior" lo fija el sistema al crear la auditoría: lo que mande el cliente se ignora.
+        var guardada = guardadas[it.id];
+        var an = guardada && guardada.a !== undefined ? guardada.a : null;
+        var h = String(r.h || '').slice(0, 1000);
+        if (p === null) faltan++; else obtenido += p;
+        if (p !== null || an !== null || h) respuestas[it.id] = { a: an, p: p, h: h };
+      });
+    });
+    if (finalizar && faltan > 0) throw new Error('Faltan ' + faltan + ' criterio(s) por puntuar.');
+    var json = JSON.stringify(respuestas);
+    if (json.length > MAX_JSON) throw new Error('Las observaciones son demasiado largas. Acórtalas.');
+
+    // Escrituras en bloque (encargada..estado y respuestas..obtenido). Las columnas de en medio, con la estructura de la
+    // plantilla (que pesa), no se tocan.
+    // El auditor es quien creó la auditoría: no se cambia al guardar.
+    var auditor = String(a.valores[COL_AUD.auditor]);
+    var fila = a.valores.slice();
+    var estado = finalizar ? 'finalizada' : 'borrador';
+    fila[COL_AUD.encargada] = encargada;
+    fila[COL_AUD.respuestas] = json;
+    fila[COL_AUD.estado] = estado;
+    a.sheet.getRange(a.indice, COL_AUD.encargada + 1, 1, 4).setValues([[encargada, auditor, fecha, estado]]);
+    a.sheet.getRange(a.indice, COL_AUD.respuestas + 1, 1, 3).setValues([[json, maximo, obtenido]]);
+    if (finalizar) a.sheet.getRange(a.indice, COL_AUD.fechaFinalizada + 1).setValue(ahoraLocal_());
     bumpRevision_('auditorias');
+    return huellaAuditoria_(fila);
   });
-  return jsonOut_({ ok: true });
+  return jsonOut_({ ok: true, version: version });
 }
 
 function handleReabrirAuditoria_(body) {
   var user = requireRol_(body, ['admin', 'auditor']);
-  var a = auditoriaVisible_(user, body.id);
-  conLock_(function () {
-    a.sheet.getRange(a.indice, COL_AUD.estado + 1).setValue('borrador');
-    a.sheet.getRange(a.indice, COL_AUD.fechaFinalizada + 1).setValue('');
+  var version = conLock_(function () {
+    var a = auditoriaVisible_(user, body.id);
+    var fila = a.valores.slice();
+    fila[COL_AUD.estado] = 'borrador';
+    fila[COL_AUD.fechaFinalizada] = '';
+    a.sheet.getRange(a.indice, COL_AUD.estado + 1, 1, 1).setValue('borrador');
+    a.sheet.getRange(a.indice, COL_AUD.fechaFinalizada + 1, 1, 1).setValue('');
     bumpRevision_('auditorias');
+    return huellaAuditoria_(fila);
   });
-  return jsonOut_({ ok: true });
+  return jsonOut_({ ok: true, version: version });
 }
 
-/** Admin borra cualquiera; un auditor solo borradores. */
+/** Solo se borran borradores: una auditoría finalizada no se puede borrar. */
 function handleDeleteAuditoria_(body) {
   var user = requireRol_(body, ['admin', 'auditor']);
-  var a = auditoriaVisible_(user, body.id);
-  if (normalizarEstado_(a.valores[COL_AUD.estado]) !== 'borrador') {
-    throw new Error('Una auditoría finalizada no se puede borrar.');
-  }
   conLock_(function () {
+    var a = auditoriaVisible_(user, body.id);
+    if (normalizarEstado_(a.valores[COL_AUD.estado]) !== 'borrador') {
+      throw new Error('Una auditoría finalizada no se puede borrar.');
+    }
     borrarFila_(a.sheet, a.indice);
     bumpRevision_('auditorias');
   });
@@ -884,12 +919,13 @@ function handleCreateUsuario_(body) {
   if (!nombre) throw new Error('El nombre de usuario es obligatorio.');
   if (!password) throw new Error('La contraseña inicial es obligatoria.');
 
-  var sheet = getSheet_(SHEET_USUARIOS);
-  if (usuarioPorNombre_(sheet, nombre)) throw new Error('Ya existe un usuario con ese nombre.');
-
   conLock_(function () {
+    var sheet = getSheet_(SHEET_USUARIOS);
+    if (usuarioPorNombre_(sheet, nombre)) throw new Error('Ya existe un usuario con ese nombre.');
+
     sheet.appendRow([nombre, password, rol, activo, empresas.join(','), nombreCompleto]);
     bumpRevision_('usuarios');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -905,24 +941,28 @@ function handleUpdateUsuario_(body) {
   var nuevoNombre = String(body.nuevoUsuario || '').trim().toUpperCase();
   var empresas = validarEmpresasUsuario_(rol, body.empresas);
 
-  var sheet = getSheet_(SHEET_USUARIOS);
-  var encontrada = usuarioPorNombre_(sheet, nombre);
-  if (!encontrada) throw new Error('El usuario ya no existe.');
-
-  var eraAdminActivo = normalizarRol_(encontrada.valores[COL_USR.rol]) === 'admin' && esActivo_(encontrada.valores[COL_USR.activo]);
-  if (eraAdminActivo && !(rol === 'admin' && activo) && contarAdminsActivos_(sheet) <= 1) {
-    throw new Error('No puedes quitar el último Admin activo.');
-  }
-
   var seRenombra = !!nuevoNombre && nuevoNombre !== nombre.toUpperCase();
-  if (seRenombra && usuarioPorNombre_(sheet, nuevoNombre)) throw new Error('Ya existe un usuario con ese nombre.');
 
   conLock_(function () {
-    var fila = encontrada.indice;
-    if (seRenombra) sheet.getRange(fila, COL_USR.usuario + 1).setValue(nuevoNombre);
-    sheet.getRange(fila, COL_USR.rol + 1, 1, 3).setValues([[rol, activo, empresas.join(',')]]);
-    sheet.getRange(fila, COL_USR.nombre + 1).setValue(nombreCompleto);
-    if (nuevaPassword) sheet.getRange(fila, COL_USR.password + 1).setValue(nuevaPassword);
+    var sheet = getSheet_(SHEET_USUARIOS);
+    var encontrada = usuarioPorNombre_(sheet, nombre);
+    if (!encontrada) throw new Error('El usuario ya no existe.');
+
+    var eraAdminActivo = normalizarRol_(encontrada.valores[COL_USR.rol]) === 'admin' && esActivo_(encontrada.valores[COL_USR.activo]);
+    if (eraAdminActivo && !(rol === 'admin' && activo) && contarAdminsActivos_(sheet) <= 1) {
+      throw new Error('No puedes quitar el último Admin activo.');
+    }
+    if (seRenombra && usuarioPorNombre_(sheet, nuevoNombre)) throw new Error('Ya existe un usuario con ese nombre.');
+
+    // Una sola escritura para usuario, rol, activo, empresas, nombre y (si se cambia) contraseña.
+    var fila = encontrada.valores.slice();
+    if (seRenombra) fila[COL_USR.usuario] = nuevoNombre;
+    fila[COL_USR.rol] = rol;
+    fila[COL_USR.activo] = activo;
+    fila[COL_USR.empresas] = empresas.join(',');
+    fila[COL_USR.nombre] = nombreCompleto;
+    if (nuevaPassword) fila[COL_USR.password] = nuevaPassword;
+    sheet.getRange(encontrada.indice, 1, 1, fila.length).setValues([fila]);
     bumpRevision_('usuarios');
   });
   return jsonOut_({ ok: true, usuario: seRenombra ? nuevoNombre : nombre.toUpperCase() });
@@ -934,15 +974,16 @@ function handleDeleteUsuario_(body) {
   if (!nombre) throw new Error('Falta el usuario a borrar.');
   if (nombre.toUpperCase() === actual.usuario.toUpperCase()) throw new Error('No puedes borrarte a ti mismo.');
 
-  var sheet = getSheet_(SHEET_USUARIOS);
-  var encontrada = usuarioPorNombre_(sheet, nombre);
-  if (!encontrada) throw new Error('El usuario ya no existe.');
-  var esAdminActivo = normalizarRol_(encontrada.valores[COL_USR.rol]) === 'admin' && esActivo_(encontrada.valores[COL_USR.activo]);
-  if (esAdminActivo && contarAdminsActivos_(sheet) <= 1) throw new Error('No puedes borrar el último Admin activo.');
-
   conLock_(function () {
+    var sheet = getSheet_(SHEET_USUARIOS);
+    var encontrada = usuarioPorNombre_(sheet, nombre);
+    if (!encontrada) throw new Error('El usuario ya no existe.');
+    var esAdminActivo = normalizarRol_(encontrada.valores[COL_USR.rol]) === 'admin' && esActivo_(encontrada.valores[COL_USR.activo]);
+    if (esAdminActivo && contarAdminsActivos_(sheet) <= 1) throw new Error('No puedes borrar el último Admin activo.');
+
     borrarFila_(sheet, encontrada.indice);
     bumpRevision_('usuarios');
+
   });
   return jsonOut_({ ok: true });
 }
@@ -952,12 +993,13 @@ function handleCambiarMiPassword_(body) {
   var user = requireAuth_(body);
   var nuevaPassword = String(body.nuevaPassword || '');
   if (!nuevaPassword) throw new Error('La nueva contraseña es obligatoria.');
-  var sheet = getSheet_(SHEET_USUARIOS);
-  var encontrada = usuarioPorNombre_(sheet, user.usuario);
-  if (!encontrada) throw new Error('El usuario ya no existe.');
   conLock_(function () {
+    var sheet = getSheet_(SHEET_USUARIOS);
+    var encontrada = usuarioPorNombre_(sheet, user.usuario);
+    if (!encontrada) throw new Error('El usuario ya no existe.');
     sheet.getRange(encontrada.indice, COL_USR.password + 1).setValue(nuevaPassword);
     invalidarAuth_();
+
   });
   return jsonOut_({ ok: true });
 }

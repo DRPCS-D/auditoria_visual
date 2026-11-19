@@ -19,11 +19,12 @@ export async function ejecutarConDatos<T>(
   accion: string,
   payload: Record<string, unknown>,
   mensajeError: string,
-): Promise<{ error: string | null; data: T | null }> {
+): Promise<{ error: string | null; data: T | null; codigo: string }> {
   try {
     const data = await callApi<T>(accion, conCredenciales(payload))
-    return { error: null, data }
+    return { error: null, data, codigo: '' }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : mensajeError, data: null }
+    const codigo = (e as { codigo?: string } | null)?.codigo ?? ''
+    return { error: e instanceof Error ? e.message : mensajeError, data: null, codigo }
   }
 }

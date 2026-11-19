@@ -107,6 +107,8 @@ export interface Auditoria extends AuditoriaResumen {
   titulo: string
   /** Fecha de la auditoría de la que salen los puntajes «Anterior»; vacía si no hubo. */
   anteriorFecha: string
+  /** Huella del contenido guardado: se devuelve al guardar para detectar que otro dispositivo guardó antes. */
+  version: string
   secciones: Seccion[]
   respuestas: Respuestas
 }
