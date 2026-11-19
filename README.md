@@ -17,7 +17,7 @@ Frontend: React 19 + Vite + Tailwind 4 (Vercel). Backend: Google Apps Script sob
 
 | Rol | Puede |
 |---|---|
-| `admin` | Todo: empresas, sucursales, plantillas, usuarios, borrar borradores (una auditoría finalizada no se borra). |
+| `admin` | Todo: empresas, sucursales, plantillas, usuarios, reabrir cualquier auditoría y borrar borradores (una auditoría finalizada no se borra). |
 | `auditor` | Crear, completar y reabrir sus propias auditorías (solo ve las que él creó), y crear y editar empresas, sucursales y plantillas (no borrar). |
 | `consulta` | Ver auditorías y descargar el PDF. |
 
